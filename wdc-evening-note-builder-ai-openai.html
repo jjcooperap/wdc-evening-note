@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WDC Evening Note Builder — AI</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --rule: #d8d8d8;
+    --bg: #f7f5f0;
+    --panel: #ffffff;
+    --accent: #8a1c1c;
+    --accent-soft: #f3e6e6;
+    --ok: #1e6b3a;
+    --err: #b00020;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px; line-height: 1.45;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 140px; }
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 12px; margin-bottom: 18px;
+  }
+  header.masthead h1 {
+    font-size: 26px; letter-spacing: 2px; margin: 0 0 4px;
+    text-transform: uppercase;
+  }
+  header.masthead p {
+    margin: 0; color: var(--muted); font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .key-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid var(--rule); padding: 10px 12px;
+    border-radius: 3px; margin-bottom: 18px; flex-wrap: wrap;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+  }
+  .key-bar label { color: var(--muted); white-space: nowrap; }
+  .key-bar input[type=password] {
+    flex: 1 1 320px;
+    padding: 7px 9px; font-family: monospace; font-size: 13px;
+    border: 1px solid var(--rule); border-radius: 2px;
+    background: #fdfdfb;
+  }
+  .key-bar .check { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+  .key-bar small { color: var(--muted); }
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    padding: 16px 18px 12px;
+    margin-bottom: 16px;
+    border-radius: 2px;
+  }
+  .section h2 {
+    margin: 0 0 2px; font-size: 14px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--accent); font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .section .hint {
+    margin: 0 0 10px; font-size: 12px; color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .pane { display: flex; flex-direction: column; }
+  .pane label.col {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 4px; font-weight: 700;
+  }
+  textarea {
+    width: 100%; min-height: 150px;
+    padding: 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 14px; line-height: 1.5;
+    border: 1px solid var(--rule); border-radius: 2px;
+    background: #fdfdfb; resize: vertical; color: var(--ink);
+  }
+  textarea.tall { min-height: 200px; }
+  textarea[data-out] { background: #fbf9f3; }
+  textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 8px; flex-wrap: wrap;
+  }
+  .row .count {
+    font-size: 12px; color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .count strong { color: var(--ink); }
+  .spacer { flex: 1; }
+  .status-line {
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--muted);
+    min-height: 16px;
+  }
+  .status-line.ok { color: var(--ok); }
+  .status-line.err { color: var(--err); }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px; padding: 8px 14px;
+    border-radius: 3px; border: 1px solid transparent;
+    cursor: pointer; font-weight: 600; letter-spacing: 0.3px;
+  }
+  button.primary { background: var(--ink); color: #fff; }
+  button.primary:hover { background: #000; }
+  button.secondary { background: #fff; color: var(--ink); border-color: var(--rule); }
+  button.secondary:hover { background: #efece6; }
+  button.danger { background: #fff; color: var(--accent); border-color: var(--accent); }
+  button.danger:hover { background: var(--accent-soft); }
+  button.small { font-size: 12px; padding: 6px 10px; }
+  button[disabled] { opacity: 0.55; cursor: not-allowed; }
+  .toolbar {
+    position: sticky; bottom: 0; z-index: 5;
+    background: var(--bg);
+    padding: 14px 0 6px;
+    margin-top: 20px;
+    border-top: 1px solid var(--rule);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .toolbar .total {
+    margin-left: auto; font-size: 13px; color: var(--muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .toolbar .total strong { color: var(--ink); }
+  details.preview {
+    margin-top: 14px; background: #fff; border: 1px solid var(--rule);
+    border-radius: 2px; padding: 10px 14px;
+  }
+  details.preview summary {
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px; color: var(--muted); font-weight: 700;
+    letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  details.preview pre {
+    white-space: pre-wrap;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 14px; line-height: 1.5;
+    margin: 12px 0 4px; color: var(--ink);
+  }
+  .copy-toast {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px; color: var(--ok); opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .copy-toast.show { opacity: 1; }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid #ccc; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    vertical-align: -2px; margin-right: 4px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>WDC Evening Note Builder — AI</h1>
+    <p>Paste raw input on the left, generate formatted output on the right, then compile.</p>
+  </header>
+
+  <div class="key-bar">
+    <label for="apiKey">OpenAI API key:</label>
+    <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off">
+    <label class="check"><input id="rememberKey" type="checkbox"> remember in this browser</label>
+    <small>Calls go directly from your browser to api.openai.com. For production use, proxy this request server-side so the key is not exposed.</small>
+  </div>
+
+  <!-- WHITE HOUSE -->
+  <section class="section" data-key="white_house">
+    <h2>White House <span style="font-weight:400;color:#6b6b6b;font-size:11px;letter-spacing:0;">· GPT-5.4 mini</span></h2>
+    <p class="hint">Paste raw items or notes. Generate produces 3–5 terse wire-style lines.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in placeholder="Paste raw notes, schedule items, news bullets…"></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out placeholder="Click Generate to summarize…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary small" data-generate>Generate</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <!-- SUPREME COURT -->
+  <section class="section" data-key="supreme_court">
+    <h2>Supreme Court <span style="font-weight:400;color:#6b6b6b;font-size:11px;letter-spacing:0;">· GPT-5.4 + web search</span></h2>
+    <p class="hint">Paste opinions, arguments, orders. Generate produces 1–3 entries; each case gets a plain-language significance sentence.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in placeholder="Paste raw case info, argument calendar, opinion text…"></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out placeholder="Click Generate to summarize…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary small" data-generate>Generate</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <!-- HOUSE -->
+  <section class="section" data-key="house">
+    <h2>House <span style="font-weight:400;color:#6b6b6b;font-size:11px;letter-spacing:0;">· GPT-5.4 + web search</span></h2>
+    <p class="hint">Paste raw committee/floor activity. Generate compresses Senate-speak into news-grade bullets — acronyms applied, subcommittees in parens, Rules Committee bills annotated.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in class="tall" placeholder="Paste raw House schedule, committee announcements, floor notices…"></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out class="tall" placeholder="Click Generate to summarize…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary small" data-generate>Generate</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <!-- SENATE -->
+  <section class="section" data-key="senate">
+    <h2>Senate <span style="font-weight:400;color:#6b6b6b;font-size:11px;letter-spacing:0;">· GPT-5.4 + web search</span></h2>
+    <p class="hint">Click Fetch Senate Schedule to pull tomorrow's hearings from senate.gov, or paste raw text. Generate compresses Senate-speak into news-grade bullets — acronyms applied, subcommittees in parens, ceremonial language stripped.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in class="tall" placeholder="Click Fetch Senate Schedule, or paste raw text…"></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out class="tall" placeholder="Click Generate to summarize…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="secondary small" id="fetchSenateBtn">Fetch Senate Schedule</button>
+      <button type="button" class="primary small" data-generate>Generate</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <!-- WDC ON THE WIRE -->
+  <section class="section" data-key="on_the_wire">
+    <h2>WDC On the Wire (Late-Filed Stories)</h2>
+    <p class="hint">Paste headlines exactly as you want them. Format preserves text verbatim; only line breaks become bullet items.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in class="tall" placeholder="One headline per line — text will not be modified."></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out class="tall" placeholder="Click Format to copy input verbatim…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary small" data-generate>Format</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <!-- ELSEWHERE -->
+  <section class="section" data-key="elsewhere">
+    <h2>Elsewhere</h2>
+    <p class="hint">One item per line: "Outlet: Headline" — append a URL anywhere on the line and the outlet name becomes a hyperlink (URL hidden) when pasted into rich-text apps. No AI call.</p>
+    <div class="grid">
+      <div class="pane">
+        <label class="col">Raw input</label>
+        <textarea data-in class="tall" placeholder="WSJ: Headline https://www.wsj.com/article&#10;Axios: Headline https://www.axios.com/story&#10;CNN: Headline (no URL works too)"></textarea>
+      </div>
+      <div class="pane">
+        <label class="col">Formatted output (editable)</label>
+        <textarea data-out class="tall" placeholder="Click Format to bulletize…"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary small" data-generate>Format</button>
+      <button type="button" class="secondary small" data-copyout>Copy</button>
+      <span class="count">Output: <strong data-count>0</strong> words</span>
+      <span class="spacer"></span>
+      <span class="status-line" data-status></span>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button type="button" class="primary" id="compileBtn">Compile &amp; Copy</button>
+    <button type="button" class="secondary" id="previewBtn">Toggle Preview</button>
+    <button type="button" class="danger" id="clearBtn">Clear All</button>
+    <span class="copy-toast" id="copyToast">Copied to clipboard.</span>
+    <span class="total">Total: <strong id="totalWords">0</strong> words</span>
+  </div>
+
+  <details class="preview" id="previewBox">
+    <summary>Compiled Preview</summary>
+    <pre id="previewOut">(Compile to populate)</pre>
+  </details>
+</div>
+
+<script>
+(function () {
+  const API_URL = "https://api.openai.com/v1/responses";
+  const STORAGE_KEY = "wdc_evening_note_openai_apikey";
+
+  // Per-section model selection. GPT-5.4 mini is the lower-cost
+  // routine summarizer; GPT-5.4 is used for the sections that demand
+  // stronger journalistic compression, common-acronym substitution,
+  // legal/political significance judgment, and optional hosted web search.
+  const MODEL_DEFAULT = "gpt-5.4-mini";
+  const SECTION_MODELS = {
+    white_house:   "gpt-5.4-mini",
+    supreme_court: "gpt-5.4",
+    house:         "gpt-5.4",
+    senate:        "gpt-5.4"
+  };
+
+  // Sections that may run OpenAI hosted web search. Browser-side calls
+  // require the project/API key to have Responses API web-search access.
+  // If your organization blocks browser-origin requests or tool access,
+  // keep this set to false and route calls through a small server/proxy.
+  const ENABLE_OPENAI_WEB_SEARCH = true;
+  const SECTION_WEB_SEARCH = {
+    supreme_court: 3,
+    house:         3,
+    senate:        3
+  };
+
+  // --- API key wiring -----------------------------------------------------
+  const keyInput = document.getElementById("apiKey");
+  const remember = document.getElementById("rememberKey");
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) { keyInput.value = saved; remember.checked = true; }
+  remember.addEventListener("change", () => {
+    if (remember.checked && keyInput.value.trim()) {
+      localStorage.setItem(STORAGE_KEY, keyInput.value.trim());
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  });
+  keyInput.addEventListener("change", () => {
+    if (remember.checked && keyInput.value.trim()) {
+      localStorage.setItem(STORAGE_KEY, keyInput.value.trim());
+    }
+  });
+  function getKey() {
+    const k = keyInput.value.trim();
+    if (!k) throw new Error("Enter your OpenAI API key at the top of the page.");
+    return k;
+  }
+
+  // --- Section configuration ---------------------------------------------
+  const SECTIONS = [
+    { key: "white_house",   header: "WHITE HOUSE" },
+    { key: "supreme_court", header: "SUPREME COURT:" },
+    { key: "house",         header: "HOUSE:" },
+    { key: "senate",        header: "SENATE:" },
+    { key: "on_the_wire",   header: "WDC ON THE WIRE (LATE-FILED STORIES)" },
+    { key: "elsewhere",     header: "ELSEWHERE:" }
+  ];
+
+  // --- Style guidance derived from the sample + good examples ------------
+  // The goal: each bulleted line must be scannable at a glance so a
+  // journalist can size up newsworthiness in seconds. This guide encodes
+  // the concrete differences between the verbose pass-through that earlier
+  // versions produced and the news-grade compression the journalist wants.
+  const SAMPLE_STYLE = `STYLE GUIDE — WDC EVENING NOTE
+
+GOAL: Each bulleted line must be readable at a glance. A journalist should be able to size up the newsworthiness of an event in two seconds, without wading through Senate-speak. Translate the input into terse journalist-style prose; do NOT pass the input through verbatim.
+
+CORE RULES
+- OUTPUT AS A BULLETED LIST. Every line — including placeholder lines like "TBD" or "No arguments scheduled" — must begin with "• " (bullet character + single space). No numbering, no markdown dashes, no asterisks. Only "• ".
+- One item per line.
+- No section headers in your output. No preamble. No closing commentary. Just bulleted lines.
+- Terse wire-service register. No editorializing. Faithful to the input but news-style.
+
+SCHEDULE-ITEM FORMAT (House and Senate)
+- "• TIME: Committee — concise news-style description"
+- TIME uses AM/PM in Eastern Time (e.g., "9:30 AM", "2:00 PM").
+- An em-dash (—) separates the committee from the description.
+
+COMMITTEE NAMES
+- Drop the "Committee on" prefix. Use the bare name: "Appropriations", "Judiciary", "Armed Services", "Foreign Relations", "Agriculture, Nutrition, and Forestry", "Homeland Security", "Intelligence", "Energy and Commerce", etc.
+- Keep "Rules Committee" with its "Committee" suffix.
+- Subcommittees: write as "PARENT (Subcommittee on X)" — e.g., "Appropriations (Subcommittee on Defense)", "Judiciary (Subcommittee on Intellectual Property)", "Armed Services (Subcommittee on Airland)".
+- For long subcommittee titles, use conventional newsroom short forms:
+  • "Transportation, HUD" — NOT "Transportation, and Housing and Urban Development, and Related Agencies"
+  • "Commerce, Justice, Science" — NOT "Commerce, Justice, Science, and Related Agencies"
+  • "Military Construction, VA" — NOT "Military Construction, Veterans Affairs, and Related Agencies"
+
+ACRONYMS AND SHORT FORMS
+- Use standard journalistic acronyms freely on FIRST reference: FBI, DEA, ATF, ICE, CBP, NDAA, HUD, DOJ, DoD, DHS, IRS, EPA, FAA, FDA, CDC, CIA, NSA, FCC, FTC, SEC, DOE, VA, SBA, NIH, NASA, USPS, USDA, USCG, USAID, etc.
+- "U.S." instead of "United States" (e.g., "U.S. Navy", "U.S. Marshals Service", "U.S. Special Operations Command").
+- "FY2027" instead of "Fiscal Year 2027".
+- "NDAA FY2027" is the standard shorthand whenever the input references "Defense Authorization Request for Fiscal Year 2027 and the Future Years Defense Program" or any close variant.
+
+STRIP CEREMONIAL LANGUAGE
+- "Hearings to examine X" → "Hearing on X" (or "Closed hearing on X" for closed sessions).
+- "Hearings to examine the President's Fiscal Year 2027 Budget Request for X" → "FY2027 budget hearing, X".
+- "Hearings to examine Perspectives on X: Ensuring Y" → "Hearing on X" (drop the colon-and-subtitle).
+- Drop empty connectives: "the", "of", "and Related Agencies", "to review", "in review of", "Perspectives on", etc., when they add no information.
+- Replace "in review of the Defense Authorization Request for FY2027 and the Future Years Defense Program" with "NDAA FY2027".
+
+RULES COMMITTEE ITEMS
+- Open the description with "Business meeting setting rules for" (NOT just "Business meeting on" or a bare bill-number list).
+- For each bill, write the bill number followed by its short name in parentheses: "H.R. 5625 (Cashless Bail Reporting Act), H.R. 6260 (Keeping Violent Offenders Off Our Streets Act), H.R. 8365 (Monitor Accountability Act)".
+- Bill short names are typically already in the input — use them. If a short name is missing and a quick verification would help, OpenAI hosted web search is available.
+- For concurrent resolutions and similar items, summarize topic instead of name when natural: "H. Con. Res. 96 (law enforcement support resolution)".
+
+ORDERING
+- Chronological by time.
+- When multiple items share a time, order by political/news significance: full-committee actions before subcommittee actions of equal weight; nominations and major legislation before routine markups; Rules Committee items typically LAST among same-time entries unless they involve unusually major legislation.
+
+DESCRIPTION LENGTH
+- Aim for 5–12 words. Compress aggressively when the input is verbose.
+
+WHAT NOT TO DO
+- Don't preserve the input's exact phrasing. Translate into journalist-style prose.
+- Don't list bill numbers without their short-name annotations on Rules Committee items.
+- Don't include filler that doesn't add news value.
+- Don't invent facts. If a detail isn't in the input and can't be quickly verified via web search, omit it.
+
+FINAL ANSWER WRAPPER (MANDATORY)
+- Wrap your finished output between the exact markers ===NOTE_START=== and ===NOTE_END===, each on its own line.
+- Between those markers put ONLY the finished bulleted lines — nothing else. No reasoning, no search narration, no "I confirmed…" notes, no preamble, no postamble, no commentary.
+- Any thinking, search notes, or explanation must appear OUTSIDE the markers (before ===NOTE_START===), never between them.
+- Example shape:
+  (any reasoning or search notes here, outside the markers)
+  ===NOTE_START===
+  • 9:00 AM: Judiciary — ...
+  • 10:00 AM: Appropriations (Subcommittee on Defense) — ...
+  ===NOTE_END===`;
+
+  const PROMPTS = {
+    white_house: (raw) => `${SAMPLE_STYLE}
+
+You are formatting the WHITE HOUSE section. Convert the raw input below into 3 to 5 concise bulleted items in the wire-service register described above. Every line begins with "• ". If the input is empty or "TBD", output exactly: • TBD
+
+RAW INPUT:
+${raw}`,
+
+    supreme_court: (raw) => `${SAMPLE_STYLE}
+
+You are formatting the SUPREME COURT section. Output 1 to 3 bulleted entries.
+
+For each case:
+- ONE bullet beginning with "• ".
+- Include time if known, the case name with parties, the docket number ("No. XX-XXX") when available, and a brief legal description.
+- Then a single plain-language sentence explaining the real-world significance for an educated non-lawyer reader: what real-world question the Court is resolving and why ordinary people, businesses, or institutions should care (not just the legal doctrine at issue). This sentence may continue on the same line, or begin on a continuation line indented two spaces if length demands.
+- Separate distinct cases with one blank line.
+- If a case detail (parties, issue, real-world stakes) is unclear or missing from the input, use OpenAI hosted web search to verify before writing.
+
+If nothing is scheduled, output exactly: • No arguments or sessions scheduled
+
+RAW INPUT:
+${raw}`,
+
+    house: (raw) => `${SAMPLE_STYLE}
+
+You are formatting the HOUSE section. Convert the raw input into concise chronological bullets a journalist can scan at a glance.
+
+- Apply ALL style rules above. The committee-name conventions, subcommittee parenthetical format, acronym substitutions, ceremonial-language stripping, Rules Committee bill annotations, and political-significance ordering are MANDATORY — not suggestions.
+- Include floor convening times and any scheduled votes as separate bulleted lines.
+- Order chronologically; break ties on shared times by political significance.
+- OpenAI hosted web search is available for verifying a bill's short name, a witness identity, an unfamiliar acronym, or hearing context. Use it sparingly — only when the input alone is insufficient.
+
+If empty or nothing scheduled, output exactly: • No committee hearings scheduled
+
+RAW INPUT:
+${raw}`,
+
+    senate: (raw) => `${SAMPLE_STYLE}
+
+You are formatting the SENATE section. Convert the raw input into concise chronological bullets a journalist can scan at a glance.
+
+- Apply ALL style rules above. The committee-name conventions, subcommittee parenthetical format, acronym substitutions, ceremonial-language stripping, and political-significance ordering are MANDATORY.
+- Include floor convening times, committee hearings, business meetings, markups, confirmation hearings, and notable closed/open session transitions ("closed hearing on X; open session follows at approximately 11:00 AM").
+- For Intelligence Committee closed sessions: "• TIME: Intelligence — Closed briefing on intelligence matters" (do not speculate on topics unless publicly announced).
+- Order chronologically; break ties on shared times by political significance.
+- OpenAI hosted web search is available for verifying a nominee identity, a bill's short name, an unfamiliar acronym, or hearing context. Use it sparingly.
+
+If empty or nothing scheduled, output exactly: • No committee hearings scheduled
+
+RAW INPUT:
+${raw}`
+  };
+
+  // --- HTML helpers (Elsewhere hyperlinking + clipboard rich text) --------
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // Process an Elsewhere block of text into parallel plain/HTML arrays.
+  // Each non-empty line yields a "• "-bulleted item. If a line contains a
+  // URL, the outlet name (text before the first colon) becomes the link
+  // target and the URL is stripped from the plain-text version.
+  function processElsewhere(text) {
+    const plainArr = [];
+    const htmlArr = [];
+    text.split(/\r?\n/).forEach(line => {
+      const stripped = line
+        .replace(/\s+$/, "")
+        .replace(/^\s*(?:•|–|—|-|\*|\d+[.)])\s+/, "")
+        .trim();
+      if (!stripped) { plainArr.push(""); htmlArr.push(""); return; }
+      const urlMatch = stripped.match(/(https?:\/\/\S+)/);
+      if (!urlMatch) {
+        plainArr.push("• " + stripped);
+        htmlArr.push("• " + escHtml(stripped));
+        return;
+      }
+      const url = urlMatch[1].replace(/[.,;:!?)\]]+$/, "");
+      let cleaned = stripped
+        .replace(urlMatch[1], "")
+        .replace(/\(\s*\)/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/[\s—–-]+$/, "")
+        .trim();
+      const ci = cleaned.indexOf(":");
+      if (ci === -1) {
+        plainArr.push("• " + cleaned);
+        htmlArr.push('• <a href="' + escHtml(url) + '">' + escHtml(cleaned) + "</a>");
+        return;
+      }
+      const pub = cleaned.slice(0, ci).trim();
+      const rest = cleaned.slice(ci + 1).trim();
+      plainArr.push("• " + pub + (rest ? ": " + rest : ""));
+      htmlArr.push('• <a href="' + escHtml(url) + '">' + escHtml(pub) + "</a>" +
+                   (rest ? ": " + escHtml(rest) : ""));
+    });
+    return { plainLines: plainArr, htmlLines: htmlArr };
+  }
+
+  function wrapHtmlLines(htmlLines) {
+    return htmlLines.map(l => "<div>" + (l || "<br>") + "</div>").join("");
+  }
+
+  // --- Senate Schedule fetch ---------------------------------------------
+  // Pulls the official senate.gov hearings.xml feed and filters to events
+  // scheduled for the next legislative day (calendar tomorrow Mon–Thu;
+  // rolls Fri/Sat/Sun forward to Monday). All date math is done in US
+  // Eastern Time, regardless of the machine's local timezone.
+  const SENATE_FEED_URL = "https://www.senate.gov/general/committee_schedules/hearings.xml";
+  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  // Returns the journalist's "tomorrow" in ET. Friday → Monday,
+  // Saturday → Monday, Sunday → Monday; otherwise calendar +1 day.
+  function getTomorrowET() {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "2-digit", day: "2-digit", weekday: "long"
+    }).formatToParts(now);
+    const get = (t) => (parts.find(p => p.type === t) || {}).value;
+    const year = parseInt(get("year"), 10);
+    const month = parseInt(get("month"), 10);
+    const day = parseInt(get("day"), 10);
+    const todayWeekday = get("weekday"); // English weekday name in ET
+
+    // Anchor at noon UTC so DST shifts can't bump us across a day.
+    const anchor = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    let rollDays;
+    if (todayWeekday === "Friday")   rollDays = 3;
+    else if (todayWeekday === "Saturday") rollDays = 2;
+    else if (todayWeekday === "Sunday")   rollDays = 1;
+    else rollDays = 1;
+    anchor.setUTCDate(anchor.getUTCDate() + rollDays);
+
+    const yyyy = anchor.getUTCFullYear();
+    const mm = String(anchor.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(anchor.getUTCDate()).padStart(2, "0");
+    const wd = DAY_NAMES[anchor.getUTCDay()];
+    return {
+      iso: yyyy + "-" + mm + "-" + dd,
+      display: wd + ", " + MONTH_NAMES[anchor.getUTCMonth()] + " " + anchor.getUTCDate() + ", " + yyyy,
+      weekday: wd,
+      todayWeekday: todayWeekday,
+      rolled: rollDays > 1
+    };
+  }
+
+  // Minutes-from-midnight, used to sort meetings by time.
+  function timeToMinutes(timeStr) {
+    if (!timeStr) return 9999;
+    const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!m) return 9999;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const period = m[3].toUpperCase();
+    if (period === "PM" && h < 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    return h * 60 + min;
+  }
+
+  // Build a cache-busted URL. The senate.gov feed sits behind a CDN that
+  // serves stale copies for ~hours unless the query string differs, so we
+  // append several unique params each call to guarantee a cache miss.
+  function cacheBustedSenateUrl() {
+    const ts   = Date.now();
+    const rand = Math.random().toString(36).slice(2, 10);
+    const rev  = (cacheBustedSenateUrl._n = (cacheBustedSenateUrl._n || 0) + 1);
+    const sep  = SENATE_FEED_URL.indexOf("?") === -1 ? "?" : "&";
+    return SENATE_FEED_URL + sep + "_t=" + ts + "&_r=" + rand + "&_v=" + rev;
+  }
+
+  // Parse the feed's <last_updated> string. The feed uses "MM-DD-YYYY HH:MM:SS AM/PM".
+  function parseFeedLastUpdated(s) {
+    if (!s) return null;
+    const m = s.trim().match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i);
+    if (!m) return null;
+    let h = parseInt(m[4], 10);
+    const period = m[7] ? m[7].toUpperCase() : null;
+    if (period === "PM" && h < 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    // Feed is in ET. Convert by anchoring at the parsed wall-clock interpreted as UTC
+    // and then subtracting the ET offset; "stale-by-N-hours" is robust to a 1h DST slop.
+    return new Date(Date.UTC(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]), h + 4, parseInt(m[5]), parseInt(m[6])));
+  }
+
+  function stalenessHours(lastUpdated) {
+    if (!lastUpdated) return null;
+    return (Date.now() - lastUpdated.getTime()) / 3600000;
+  }
+
+  // Acquires the filtered meeting list. Two paths:
+  //   (direct) browser fetch + DOMParser — works when the page is served
+  //            over http(s) and CORS permits it.
+  //   (jsonp)  Script-tag JSONP via api.allorigins.win, which works from
+  //            any origin including file:// (where fetch() is silently
+  //            blocked even for CORS-permissive servers). allorigins
+  //            wraps senate.gov's response in a callback, so a <script>
+  //            tag can pull it in without triggering CORS at all.
+  //
+  // OpenAI web search is intentionally NOT used for this feed fetch. The
+  // official senate.gov XML feed is fetched directly here so query-string
+  // cache busting, ET date filtering, and stale-feed warnings remain under
+  // local control.
+  async function fetchSenateMeetings(tomorrow) {
+    let directErr;
+    // Tier 1: direct browser fetch.
+    try {
+      const resp = await fetch(cacheBustedSenateUrl(), {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const xml = await resp.text();
+      if (xml.indexOf("<meeting") === -1) throw new Error("response did not contain <meeting> elements");
+      return buildResultFromXml(xml, tomorrow, "direct");
+    } catch (e) {
+      directErr = e;
+    }
+    // Tier 2: JSONP via allorigins.win — the script-tag mechanism bypasses
+    // the file:// origin's fetch restrictions entirely.
+    try {
+      const xml = await fetchViaAllOriginsJsonp(cacheBustedSenateUrl());
+      if (xml.indexOf("<meeting") === -1) throw new Error("response did not contain <meeting> elements");
+      return buildResultFromXml(xml, tomorrow, "jsonp");
+    } catch (jsonpErr) {
+      throw new Error(
+        "Direct fetch failed (" + directErr.message + "); " +
+        "JSONP fallback also failed (" + jsonpErr.message + ")."
+      );
+    }
+  }
+
+  // Pulls a URL through api.allorigins.win using JSONP (a <script> tag
+  // injected into the document). Because <script> loads aren't subject to
+  // CORS, this works from any origin, including local file:// pages where
+  // browsers block fetch() across schemes. allorigins returns a JSON
+  // envelope: { contents: "<the actual response body>", status: {...} }.
+  function fetchViaAllOriginsJsonp(targetUrl) {
+    return new Promise(function (resolve, reject) {
+      const cbName = "_wdcJsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+      const proxied = "https://api.allorigins.win/get?url=" + encodeURIComponent(targetUrl) +
+                      "&callback=" + cbName;
+      const script = document.createElement("script");
+      let done = false;
+      function cleanup() {
+        if (done) return;
+        done = true;
+        try { delete window[cbName]; } catch (_) { window[cbName] = undefined; }
+        if (script.parentNode) script.parentNode.removeChild(script);
+        clearTimeout(timer);
+      }
+      const timer = setTimeout(function () {
+        cleanup();
+        reject(new Error("JSONP timeout after 20s"));
+      }, 20000);
+      window[cbName] = function (data) {
+        cleanup();
+        if (data && typeof data.contents === "string") resolve(data.contents);
+        else reject(new Error("unexpected JSONP envelope shape"));
+      };
+      script.onerror = function () {
+        cleanup();
+        reject(new Error("JSONP script failed to load"));
+      };
+      script.src = proxied;
+      document.body.appendChild(script);
+    });
+  }
+
+  function buildResultFromXml(xml, tomorrow, via) {
+    const meetings = parseSenateMeetings(xml, tomorrow.iso);
+    const luMatch = xml.match(/<last_updated>([^<]+)<\/last_updated>/);
+    const lastUpdated = luMatch ? parseFeedLastUpdated(luMatch[1]) : null;
+    return { meetings: meetings, via: via, lastUpdated: lastUpdated };
+  }
+
+  // Parse the senate.gov XML; return meetings whose date_iso_8601 matches.
+  function parseSenateMeetings(xmlText, isoDate) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, "text/xml");
+    if (doc.querySelector("parsererror")) {
+      throw new Error("RSS feed XML could not be parsed");
+    }
+    const meetings = [];
+    doc.querySelectorAll("meeting").forEach(m => {
+      const tx = (sel) => {
+        const el = m.querySelector(sel);
+        return el ? (el.textContent || "").trim() : "";
+      };
+      const date = tx("date_iso_8601");
+      if (date !== isoDate) return;
+      const committee = tx("committee");
+      // Skip placeholder rows (empty committee + "no hearings" matter).
+      if (!committee) return;
+      meetings.push({
+        time:      tx("time"),
+        committee: committee,
+        subCmte:   tx("sub_cmte"),
+        room:      tx("room"),
+        matter:    tx("matter")
+      });
+    });
+    meetings.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+    return meetings;
+  }
+
+  // Render the matched meetings into the textarea using the format the
+  // journalist normally pastes from senate.gov (date / time–room <tab>
+  // committee / subcommittee <tab> matter), so the downstream Generate
+  // prompt sees something it's already tuned for.
+  function formatMeetingsForTextarea(meetings, tomorrow) {
+    if (!meetings.length) return "No committee hearings scheduled";
+    const blocks = meetings.map(m => {
+      const line1 = tomorrow.display;
+      const line2 = m.time + " – " + (m.room || "TBD") + "\t" + m.committee;
+      const line3 = m.subCmte
+        ? m.subCmte + "\t" + m.matter
+        : m.matter;
+      return line1 + "\n" + line2 + "\n" + line3;
+    });
+    return blocks.join("\n");
+  }
+
+  async function fetchSenateSchedule() {
+    const section = document.querySelector('.section[data-key="senate"]');
+    const inEl = section.querySelector("[data-in]");
+    const btn = document.getElementById("fetchSenateBtn");
+    const tomorrow = getTomorrowET();
+
+    btn.disabled = true;
+    setStatus(section, '<span class="spinner"></span> Fetching schedule for ' + tomorrow.display + '…');
+    try {
+      const { meetings, via, lastUpdated } = await fetchSenateMeetings(tomorrow);
+      inEl.value = formatMeetingsForTextarea(meetings, tomorrow);
+      const viaLabel = via === "direct" ? "direct fetch" : "via allorigins.win";
+      const rollNote = tomorrow.rolled ? " (rolled from " + tomorrow.todayWeekday + ")" : "";
+      const count = meetings.length;
+      const stale = stalenessHours(lastUpdated);
+      let staleNote = "";
+      let cls = "ok";
+      if (stale != null && stale > 24) {
+        staleNote = " ⚠ feed appears stale (last updated " + Math.round(stale) + "h ago)";
+        cls = "err";
+      }
+      setStatus(section,
+        "Fetched " + count + " event" + (count === 1 ? "" : "s") +
+        " for " + tomorrow.display + rollNote + " · " + viaLabel + "." + staleNote,
+        cls);
+    } catch (e) {
+      setStatus(section, "Fetch failed: " + e.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Safety net: ensure every non-empty line in AI output begins with "• ".
+  function bulletize(text) {
+    if (!text) return text;
+    return text.split(/\r?\n/).map(line => {
+      const t = line.trimEnd();
+      if (!t.trim()) return "";
+      // Already bulleted (•, -, *, numeric)? Normalize to "• ".
+      const m = t.match(/^\s*(?:•|-|\*|\d+[.)])\s+(.*)$/);
+      if (m) return "• " + m[1];
+      // Indented continuation lines (e.g., Supreme Court significance) keep
+      // their indentation if present; otherwise add a fresh bullet.
+      if (/^\s{2,}\S/.test(line)) return line.replace(/\s+$/, "");
+      return "• " + t;
+    }).join("\n");
+  }
+
+  // --- Word counts --------------------------------------------------------
+  function countWords(s) {
+    const t = (s || "").trim();
+    if (!t) return 0;
+    return t.split(/\s+/).length;
+  }
+  function refreshCount(section) {
+    const out = section.querySelector("[data-out]");
+    const c = section.querySelector("[data-count]");
+    c.textContent = countWords(out.value);
+    refreshTotal();
+  }
+  function refreshTotal() {
+    let total = 0;
+    document.querySelectorAll(".section [data-out]").forEach(t => {
+      total += countWords(t.value);
+    });
+    document.getElementById("totalWords").textContent = total;
+  }
+
+  // --- OpenAI API helpers ------------------------------------------------
+  async function callOpenAI({ prompt, model, webSearchUses }) {
+    const body = {
+      model: model || MODEL_DEFAULT,
+      input: prompt,
+      max_output_tokens: 4096
+    };
+
+    // OpenAI's Responses API supports a hosted web_search tool. OpenAI
+    // does not provide a special direct-browser-access header. For newsroom/internal use,
+    // this direct-browser call can work when CORS/tool access is allowed on
+    // the key/project. For a safer production deployment, put this request
+    // behind a tiny server/proxy so the OpenAI API key is not exposed in the
+    // page source/browser devtools.
+    if (ENABLE_OPENAI_WEB_SEARCH && webSearchUses && webSearchUses > 0) {
+      body.tools = [{ type: "web_search" }];
+      body.max_tool_calls = webSearchUses;
+      body.tool_choice = "auto";
+    }
+
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + getKey()
+      },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      let detail = "";
+      try {
+        const j = await resp.json();
+        detail = j.error && j.error.message ? j.error.message : JSON.stringify(j);
+      } catch (_) { detail = await resp.text(); }
+      throw new Error("OpenAI API " + resp.status + ": " + detail);
+    }
+    const data = await resp.json();
+    const text = extractFinalAnswer(data);
+    return text || "(no text returned)";
+  }
+
+  // Pulls just the finished note out of an OpenAI Responses API response.
+  // When web_search runs, the response may include search/tool items and
+  // citations. We prefer output_text when present, otherwise recursively
+  // collect message output_text/text content and ignore tool-call records.
+  // The prompt asks the model to wrap finished output in
+  // ===NOTE_START===/===NOTE_END=== markers, so we extract between those.
+  function extractFinalAnswer(data) {
+    const START = "===NOTE_START===";
+    const END = "===NOTE_END===";
+
+    function collectText(node, arr) {
+      if (!node) return;
+      if (typeof node === "string") { arr.push(node); return; }
+      if (Array.isArray(node)) { node.forEach(n => collectText(n, arr)); return; }
+      if (typeof node !== "object") return;
+      if (node.type === "output_text" && typeof node.text === "string") arr.push(node.text);
+      else if (node.type === "text" && typeof node.text === "string") arr.push(node.text);
+      else if (node.type === "message" && node.content) collectText(node.content, arr);
+    }
+
+    const parts = [];
+    if (data && typeof data.output_text === "string" && data.output_text.trim()) {
+      parts.push(data.output_text);
+    }
+    if (data && data.output) collectText(data.output, parts);
+    const allText = Array.from(new Set(parts)).join("\n").trim();
+
+    const si = allText.indexOf(START);
+    const ei = allText.lastIndexOf(END);
+    if (si !== -1 && ei !== -1 && ei > si) {
+      return allText.slice(si + START.length, ei).trim();
+    }
+    if (si !== -1) {
+      return allText.slice(si + START.length).replace(END, "").trim();
+    }
+    return allText.trim();
+  }
+
+  // --- Per-section generate ----------------------------------------------
+  function setStatus(section, msg, cls) {
+    const el = section.querySelector("[data-status]");
+    el.className = "status-line" + (cls ? " " + cls : "");
+    el.innerHTML = msg || "";
+  }
+
+  async function generate(section) {
+    const key = section.dataset.key;
+    const inEl = section.querySelector("[data-in]");
+    const outEl = section.querySelector("[data-out]");
+    const btn = section.querySelector("[data-generate]");
+    const raw = inEl.value.trim();
+
+    setStatus(section, "");
+
+    // WDC On the Wire AND Elsewhere: pure local formatting — preserve user
+    // text verbatim, prefix each non-empty line with "• ". Elsewhere keeps
+    // any URLs visible in the output pane; URL-to-hyperlink conversion is
+    // handled at copy/compile time via processElsewhere().
+    if (key === "on_the_wire" || key === "elsewhere") {
+      if (!raw) { outEl.value = ""; refreshCount(section); setStatus(section, "Input is empty.", "err"); return; }
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      outEl.value = lines.map(l => l.startsWith("• ") ? l : "• " + l.replace(/^\s*(?:-|\*|\d+[.)])\s+/, "")).join("\n");
+      refreshCount(section);
+      setStatus(section, "Formatted " + lines.length + " bullet(s) verbatim.", "ok");
+      return;
+    }
+
+    if (!raw) { setStatus(section, "Input is empty.", "err"); return; }
+
+    const prompt = PROMPTS[key](raw);
+    const model = SECTION_MODELS[key] || MODEL_DEFAULT;
+    const webSearchUses = SECTION_WEB_SEARCH[key] || 0;
+    const usingStrongModel = model !== MODEL_DEFAULT;
+    const usingSearch = ENABLE_OPENAI_WEB_SEARCH && webSearchUses > 0;
+
+    btn.disabled = true;
+    const label = usingStrongModel
+      ? (usingSearch ? model + " + web search" : model)
+      : model;
+    setStatus(section, '<span class="spinner"></span> Generating (' + label + ')…');
+    try {
+      const text = await callOpenAI({ prompt, model, webSearchUses });
+      outEl.value = bulletize(text);
+      refreshCount(section);
+      setStatus(section, "Done.", "ok");
+    } catch (e) {
+      setStatus(section, "Error: " + e.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Senate fetch button
+  document.getElementById("fetchSenateBtn").addEventListener("click", fetchSenateSchedule);
+
+  // --- Wire up sections ---------------------------------------------------
+  document.querySelectorAll(".section").forEach(section => {
+    section.querySelector("[data-out]").addEventListener("input", () => refreshCount(section));
+    section.querySelector("[data-generate]").addEventListener("click", () => generate(section));
+    section.querySelector("[data-copyout]").addEventListener("click", async () => {
+      const v = section.querySelector("[data-out]").value;
+      if (!v.trim()) { setStatus(section, "Nothing to copy.", "err"); return; }
+      let payload;
+      if (section.dataset.key === "elsewhere") {
+        const proc = processElsewhere(v);
+        payload = { plain: proc.plainLines.join("\n"), html: wrapHtmlLines(proc.htmlLines) };
+      } else {
+        payload = { plain: v, html: null };
+      }
+      const ok = await copyToClipboard(payload);
+      setStatus(section, ok ? "Copied." : "Copy failed.", ok ? "ok" : "err");
+    });
+  });
+  refreshTotal();
+
+  // --- Compile ------------------------------------------------------------
+  // Returns { plain, html }. Elsewhere lines run through processElsewhere
+  // so URLs become hyperlinks in the rich-text version while being stripped
+  // from the plain-text version. Other sections pass through verbatim
+  // (HTML-escaped) to preserve formatting.
+  function compile() {
+    const plain = [];
+    const html = [];
+    plain.push("WDC EVENING NOTE");
+    html.push("<div>WDC EVENING NOTE</div>");
+    plain.push("");
+    html.push("<div><br></div>");
+
+    SECTIONS.forEach(s => {
+      const out = document.querySelector('.section[data-key="' + s.key + '"] [data-out]').value.trim();
+      plain.push(s.header);
+      html.push("<div>" + escHtml(s.header) + "</div>");
+      if (out) {
+        if (s.key === "elsewhere") {
+          const proc = processElsewhere(out);
+          proc.plainLines.forEach(l => plain.push(l));
+          proc.htmlLines.forEach(l => html.push("<div>" + (l || "<br>") + "</div>"));
+        } else {
+          out.split(/\r?\n/).forEach(ln => {
+            plain.push(ln);
+            html.push("<div>" + (ln.trim() ? escHtml(ln) : "<br>") + "</div>");
+          });
+        }
+      } else {
+        plain.push("• TBD");
+        html.push("<div>• TBD</div>");
+      }
+      plain.push("");
+      html.push("<div><br></div>");
+    });
+
+    while (plain.length && plain[plain.length - 1] === "") plain.pop();
+    while (html.length && html[html.length - 1] === "<div><br></div>") html.pop();
+
+    return { plain: plain.join("\n"), html: html.join("") };
+  }
+
+  // Writes both text/plain and text/html so plain-text targets get bare
+  // bullets while rich-text targets get hyperlinked Elsewhere outlets.
+  async function copyToClipboard(payload) {
+    if (typeof payload === "string") payload = { plain: payload, html: null };
+    try {
+      if (payload.html && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        const item = new ClipboardItem({
+          "text/plain": new Blob([payload.plain], { type: "text/plain" }),
+          "text/html":  new Blob([payload.html],  { type: "text/html"  })
+        });
+        await navigator.clipboard.write([item]);
+        return true;
+      }
+      await navigator.clipboard.writeText(payload.plain);
+      return true;
+    } catch (_) {
+      const ta = document.createElement("textarea");
+      ta.value = payload.plain;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (_) {}
+      document.body.removeChild(ta);
+      return ok;
+    }
+  }
+
+  function flashToast(msg, ok) {
+    const t = document.getElementById("copyToast");
+    t.textContent = msg;
+    t.style.color = ok ? "var(--ok)" : "var(--err)";
+    t.classList.add("show");
+    clearTimeout(flashToast._t);
+    flashToast._t = setTimeout(() => t.classList.remove("show"), 2400);
+  }
+
+  document.getElementById("compileBtn").addEventListener("click", async () => {
+    const out = compile();
+    document.getElementById("previewOut").textContent = out.plain;
+    const ok = await copyToClipboard(out);
+    flashToast(ok ? "Compiled and copied to clipboard." : "Compiled. Copy failed — open Preview to select manually.", ok);
+  });
+
+  document.getElementById("previewBtn").addEventListener("click", () => {
+    const box = document.getElementById("previewBox");
+    box.open = !box.open;
+    if (box.open) document.getElementById("previewOut").textContent = compile().plain;
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    if (!confirm("Clear all six sections (input AND output)? This cannot be undone.")) return;
+    document.querySelectorAll(".section textarea").forEach(t => t.value = "");
+    document.querySelectorAll(".section [data-status]").forEach(s => { s.textContent = ""; s.className = "status-line"; });
+    document.getElementById("previewOut").textContent = "(Compile to populate)";
+    refreshTotal();
+    flashToast("All sections cleared.", true);
+  });
+})();
+</script>
+</body>
+</html>
