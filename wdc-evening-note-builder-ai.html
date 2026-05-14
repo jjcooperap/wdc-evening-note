@@ -453,7 +453,18 @@ WHAT NOT TO DO
 - Don't preserve the input's exact phrasing. Translate into journalist-style prose.
 - Don't list bill numbers without their short-name annotations on Rules Committee items.
 - Don't include filler that doesn't add news value.
-- Don't invent facts. If a detail isn't in the input and can't be quickly verified via web_search, omit it.`;
+- Don't invent facts. If a detail isn't in the input and can't be quickly verified via web_search, omit it.
+
+FINAL ANSWER WRAPPER (MANDATORY)
+- Wrap your finished output between the exact markers ===NOTE_START=== and ===NOTE_END===, each on its own line.
+- Between those markers put ONLY the finished bulleted lines — nothing else. No reasoning, no search narration, no "I confirmed…" notes, no preamble, no postamble, no commentary.
+- Any thinking, search notes, or explanation must appear OUTSIDE the markers (before ===NOTE_START===), never between them.
+- Example shape:
+  (any reasoning or search notes here, outside the markers)
+  ===NOTE_START===
+  • 9:00 AM: Judiciary — ...
+  • 10:00 AM: Appropriations (Subcommittee on Defense) — ...
+  ===NOTE_END===`;
 
   const PROMPTS = {
     white_house: (raw) => `${SAMPLE_STYLE}
@@ -887,13 +898,58 @@ ${raw}`
       throw new Error("API " + resp.status + ": " + detail);
     }
     const data = await resp.json();
-    // Concatenate all top-level text blocks (skip tool_use / tool_result).
-    const text = (data.content || [])
+    const text = extractFinalAnswer(data.content);
+    return text || "(no text returned)";
+  }
+
+  // Pulls just the finished note out of an API response. When web_search
+  // runs, the model interleaves search-narration text blocks ("I confirmed
+  // short names for…") with the actual answer; naively joining every text
+  // block dumps that narration into the output. The model is instructed to
+  // wrap its finished output in ===NOTE_START===/===NOTE_END=== markers, so
+  // we extract between those. Fallbacks cover a missing/partial marker.
+  function extractFinalAnswer(contentBlocks) {
+    const blocks = contentBlocks || [];
+    const START = "===NOTE_START===";
+    const END = "===NOTE_END===";
+
+    const allText = blocks
       .filter(b => b.type === "text" && b.text)
       .map(b => b.text)
-      .join("\n")
-      .trim();
-    return text || "(no text returned)";
+      .join("\n");
+
+    // Preferred: clean extraction between both markers.
+    const si = allText.indexOf(START);
+    const ei = allText.lastIndexOf(END);
+    if (si !== -1 && ei !== -1 && ei > si) {
+      return allText.slice(si + START.length, ei).trim();
+    }
+    // Partial: only the start marker survived — take everything after it.
+    if (si !== -1) {
+      return allText.slice(si + START.length).replace(END, "").trim();
+    }
+    // No markers, but tools ran: the final answer is the text that appears
+    // AFTER the last tool-use / tool-result block.
+    let lastToolIdx = -1;
+    for (let i = 0; i < blocks.length; i++) {
+      const t = blocks[i].type;
+      if (t === "server_tool_use" || t === "tool_use" ||
+          t === "web_search_tool_result" || t === "web_fetch_tool_result" ||
+          t === "tool_result") {
+        lastToolIdx = i;
+      }
+    }
+    if (lastToolIdx !== -1) {
+      const afterText = blocks
+        .slice(lastToolIdx + 1)
+        .filter(b => b.type === "text" && b.text)
+        .map(b => b.text)
+        .join("\n")
+        .trim();
+      if (afterText) return afterText;
+    }
+    // Last resort: everything.
+    return allText.trim();
   }
 
   // --- Per-section generate ----------------------------------------------
